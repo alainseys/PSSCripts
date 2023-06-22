@@ -12,3 +12,15 @@
  - [Get list os of servers / computers](/AD/OSCount.ps1)
  - [Password change notification](/AD/PasswordChangeNotification.ps1)
 
+
+# Config Management
+
+# DHCP 
+
+# Office 365
+- [Connect to Office365](/Office%20365/O365_Connect.ps1)
+- [List groups with owners](/Office%20365/O365_List_Groups_With_Owner.ps1)
+- [List No Sync Groups](/Office%20365/O365_List_No_Sync_Groups.ps1)
+- [Remove deleted users from bin](/Office%20365/O365_Remove_DeletedUsers_From_RecycleBin.ps1)
+- [List users created last 30 day ](/Office%20365/O365_UserCreated_Last30Days.ps1)
+- [User login history](/Office%20365/O365_UserLogin_History.ps1)
