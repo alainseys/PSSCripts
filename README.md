@@ -16,6 +16,10 @@
 # Config Management
 
 # DHCP 
+- [Dhcp backup](/DHCP/Dhcp%20backup.ps1)
+- [Get-DhcpLease](/DHCP/Get-DhcpLease.ps1)
+- [Get-DhcpLease.test](/DHCP/Get-DhcpLease.test.ps1)
+- [Get-DhcpLeasesInDomain](/DHCP/Get-DhcpLeasesInDomain.ps1)
 
 # Office 365
 - [Connect to Office365](/Office%20365/O365_Connect.ps1)
@@ -24,3 +28,9 @@
 - [Remove deleted users from bin](/Office%20365/O365_Remove_DeletedUsers_From_RecycleBin.ps1)
 - [List users created last 30 day ](/Office%20365/O365_UserCreated_Last30Days.ps1)
 - [User login history](/Office%20365/O365_UserLogin_History.ps1)
+
+# Sheduled taks
+- [New scheduledTask](/Sheduled%20Task/New-ScheduledTask.ps1)
+
+#SQL
+- [Install Update](/SQL/Install-Update.ps1)
