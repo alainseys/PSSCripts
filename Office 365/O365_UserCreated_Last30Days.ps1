@@ -1,5 +1,5 @@
 ﻿$createdSinceDate = ((Get-Date).AddDays(-31)).Date
-$ou = 'OU=Domain Policy,DC=BIOPACK,DC=BE'
+$ou = 'OU=Domain Policy,DC=DOMAIN,DC=COM'
 
 
 #Get-ADUser -Filter {whenCreated -ge $createdSinceDate} -Properties whenCreated -SearchBase $ou
