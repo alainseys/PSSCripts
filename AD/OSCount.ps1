@@ -1,0 +1,1 @@
+Get-ADComputer -Filter "name -like '*'" -Properties OperatingSystem | Select Name,Count

@@ -1,0 +1,1 @@
+get-aduser -properties* -filter * | export-csv "provide path"
