@@ -3,7 +3,7 @@
 
 # Active Directory 
 
- - [Add server to domain](AddServerToDomain.ps1)
+ - [Add server to domain](/AD/AddServerToDomain.ps1)
  - Disable inactive users
  - Enable AD recycle bin
  - Fetch AD user details to csv
@@ -12,4 +12,3 @@
  - Get list os of servers / computers
  - Password change notification
 
-test
