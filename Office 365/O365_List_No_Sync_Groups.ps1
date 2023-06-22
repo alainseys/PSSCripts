@@ -1,0 +1,1 @@
+Get-ADGroup -Filter {extensionAttribute6 -NotLike "*"} -Properties extensionAttribute1 | Select sAMAccountName, extensionAttribute1 
