@@ -1,4 +1,4 @@
-﻿$pad = "\\win2019-dc\H-drive\4 - PLANNING\temp\Process";
+﻿$pad = "\\fileserver\temp\Process";
 Set-Location -Path $pad
 
 if((get-childitem $path  | where {$_.Extension -match "pdf"}).count -gt 0)

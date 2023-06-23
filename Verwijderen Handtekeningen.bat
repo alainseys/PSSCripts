@@ -7,7 +7,7 @@ goto ender
 
 :IfStatement
 del /q C:\Users\%username%\AppData\Roaming\Microsoft\Signatures
-xcopy "\\win2019-dc\H-drive\11 - IT\Signatures" "C:\Users\%username%\AppData\Roaming\Microsoft\Signatures" /exclude:except.txt /E /H /C /I
+xcopy "\\fileserver\Signatures" "C:\Users\%username%\AppData\Roaming\Microsoft\Signatures" /exclude:except.txt /E /H /C /I
 
 
 :ender
