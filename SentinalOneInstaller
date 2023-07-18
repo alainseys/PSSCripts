@@ -1,0 +1,8 @@
+@TITLE SentinalOne Installer
+@ECHO OFF
+
+SET MSI_LOCATION=c:\temp
+PUSHD %MSI_LOCATION%
+SentinelInstaller_windows_64bit_v21_7_5_1080.msi SITE_TOKEN="ENTER_SITE_TOKEN_HERE" QUIET /NORESTART
+
+POPD
