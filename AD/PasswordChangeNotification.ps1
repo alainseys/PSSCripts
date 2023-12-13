@@ -79,7 +79,7 @@ $today = $start
 
 #Import Credentials
 $password = Get-Content C:\temp\smtp.txt |  ConvertTo-SecureString
-$username = "id128751_biopack"
+$username = "username"
 $credential = New-Object System.Management.Automation.PSCredential($username,$password)
 #End Import Credentials
 
@@ -215,7 +215,7 @@ foreach ($user in $notifyUsers)
     <font face=""verdana"">
     Collega $name,
     <p> Uw wachtwoord zal vervallen binnen $messageDays<br>
-    <p>Om uw wachtwoord aan te passen volg <a href='https://biopackbe1.sharepoint.com/SitePages/Wachtwoord-aanpassen.aspx'>deze procedure</a>
+    <p>Om uw wachtwoord aan te passen volg <a href='Wachtwoord-aanpassen.aspx'>deze procedure</a>
     <br />
     <p>Indien wachtwoord niet is gewijzigd binnen deze periode zal u extern niet meer kunnen aanmelden, dan is interactie van Helpdesk noodzakelijk!</p>
     <p><b>Hou er rekening mee dat het 15min kan duren voordat alle wachtwoorden bij Office365 zijn aangepast (Office,Teams ...)</b></p>
