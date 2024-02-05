@@ -251,7 +251,7 @@ foreach ($user in $notifyUsers)
     <p>Bedankt <br> 
     </P>
     Van Marcke Helpdesk
-    <a href="mailto:helpdesk@vanmarcke.be"?Subject=Wachtwoord Verlopen | Problemen"">helpdesk@vanmarcke.be</a> | +32 562 377 66
+    <a href=""mailto:helpdesk@vanmarcke.be""?Subject=Wachtwoord Verlopen | Problemen"">helpdesk@vanmarcke.be</a> | +32 562 377 66
     </font>"
     # If Testing Is Enabled - Email Administrator
     if($testing)
