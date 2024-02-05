@@ -17,8 +17,8 @@
 
 
 .EXAMPLE
-  PasswordChangeNotification.ps1 -smtpServer mail.domain.com -expireInDays 21 -from "IT Support <support@domain.com>" -Logging -LogPath "C:\temp\wachtwoorden" -testing -testRecipient support@domain.com
-
+  PasswordChangeNotification.ps1 -smtpServer mail.domain.com -expireInDays 21 -from "IT Support <support@domain.com>" -Logging -LogPath "c:\logFiles" -testing -testRecipient support@domain.com
+  
   This example will use mail.domain.com as an smtp server, notify users whose password expires in less than 21 days, send mail from support@domain.com
   Logging is enabled, log path is c:\logfiles
   Testing is enabled, and test recipient is support@domain.com
@@ -77,12 +77,6 @@ $textEncoding = [System.Text.Encoding]::UTF8
 $today = $start
 # End System Settings
 
-#Import Credentials
-$password = Get-Content C:\temp\smtp.txt |  ConvertTo-SecureString
-$username = "username"
-$credential = New-Object System.Management.Automation.PSCredential($username,$password)
-#End Import Credentials
-
 # Load AD Module
 try{
     Import-Module ActiveDirectory -ErrorAction Stop
@@ -95,7 +89,7 @@ $padVal = "20"
 Write-Output "Script Loaded"
 Write-Output "*** Settings Summary ***"
 $smtpServerLabel = "SMTP Server".PadRight($padVal," ")
-$expireInDaysLabel = "Verlopen in ".PadRight($padVal," ")
+$expireInDaysLabel = "Expire in Days".PadRight($padVal," ")
 $fromLabel = "From".PadRight($padVal," ")
 $testLabel = "Testing".PadRight($padVal," ")
 $testRecipientLabel = "Test Recipient".PadRight($padVal," ")
@@ -135,7 +129,29 @@ Write-Output "*".PadRight(25,"*")
 # To target a specific OU - use the -searchBase Parameter -https://docs.microsoft.com/en-us/powershell/module/addsadministration/get-aduser
 # You can target specific group members using Get-AdGroupMember, explained here https://www.youtube.com/watch?v=4CX9qMcECVQ 
 # based on earlier version but method still works here.
-$users = get-aduser -filter {(Enabled -eq $true) -and (PasswordNeverExpires -eq $false)} -properties Name, PasswordNeverExpires, PasswordExpired, PasswordLastSet, EmailAddress | where { $_.passwordexpired -eq $false }
+
+#Group Based targetting
+#Create arry to store User
+$users = @()
+
+#create array to store groups
+$groups = @(
+   "ALAIN-TEST",
+   "cc.vmt.11" 
+)
+
+foreach($group in $groups){
+    $members = Get-AdGroupMember $group
+    #$members | Select SamAccountName
+    #$members | Select Name
+    foreach($member in $members){
+        $user = Get-ADUser $member -properties Name, PasswordNeverExpires, PasswordExpired, PasswordLastSet, EmailAddress
+        $users += $user
+    }
+}
+#$users | Select Name
+
+#$users = get-aduser -filter {(Enabled -eq $true) -and (PasswordNeverExpires -eq $false)} -properties Name, PasswordNeverExpires, PasswordExpired, PasswordLastSet, EmailAddress | where { $_.passwordexpired -eq $false }
 # Count Users
 $usersCount = ($users | Measure-Object).Count
 Write-Output "Found $usersCount User Objects"
@@ -168,17 +184,17 @@ foreach ($user in $users)
     # Round Expiry Date Up or Down
     if(($daysToExpire.Days -eq "0") -and ($daysToExpire.TotalHours -le $timeToMidnight.TotalHours))
     {
-        $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value "8uur."
+        $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value "today."
     }
     if(($daysToExpire.Days -eq "0") -and ($daysToExpire.TotalHours -gt $timeToMidnight.TotalHours) -or ($daysToExpire.Days -eq "1") -and ($daysToExpire.TotalHours -le $timeToMidnight2.TotalHours))
     {
-        $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value "morgen."
+        $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value "tomorrow."
     }
     if(($daysToExpire.Days -ge "1") -and ($daysToExpire.TotalHours -gt $timeToMidnight2.TotalHours))
     {
         $days = $daysToExpire.TotalDays
         $days = [math]::Round($days)
-        $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value "in $days dagen."
+        $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value "in $days days."
     }
     $daysToExpire = [math]::Round($daysToExpire.TotalDays)
     $userObj | Add-Member -Type NoteProperty -Name UserName -Value $samAccountName
@@ -197,7 +213,7 @@ Write-Output "$colusersCount Users processed"
 $notifyUsers = $colUsers | where { $_.DaysToExpire -le $expireInDays}
 $notifiedUsers = @()
 $notifyCount = ($notifyUsers | Measure-Object).Count
-Write-Output "$notifyCount gebruikers met verlopen wachtwoord binnen $expireInDays dagen"
+Write-Output "$notifyCount Users with expiring passwords within $expireInDays Days"
 # Process notifyusers
 foreach ($user in $notifyUsers)
 {
@@ -208,21 +224,21 @@ foreach ($user in $notifyUsers)
     $name = $user.Name
     $messageDays = $user.UserMessage
     # Subject Setting
-    $subject="Uw wachtwoord zal verlopen binnen  $messageDays"
+    $subject="Your password will expire $messageDays"
     # Email Body Set Here, Note You can use HTML, including Images.
     # examples here https://youtu.be/iwvQ5tPqgW0 
     $body ="
     <font face=""verdana"">
-    Collega $name,
-    <p> Uw wachtwoord zal vervallen binnen $messageDays<br>
-    <p>Om uw wachtwoord aan te passen volg <a href='Wachtwoord-aanpassen.aspx'>deze procedure</a>
-    <br />
-    <p>Indien wachtwoord niet is gewijzigd binnen deze periode zal u extern niet meer kunnen aanmelden, dan is interactie van Helpdesk noodzakelijk!</p>
-    <p><b>Hou er rekening mee dat het 15min kan duren voordat alle wachtwoorden bij Office365 zijn aangepast (Office,Teams ...)</b></p>
-    <p>Indien problemen bij wijzigen wachtwoord neem contact op met <a href='mailto:helpdesk@biopack.be'>helpdesk</a>
-	<br>
-	<p>Vul ook uw wachtwoord aan in het <a href='file://\\\\win2019-sqlv2\\BIOPACK\\Biopack_PIT\\Biopack_PIT.exe'>formulier</a></p>.
-   
+    Dear $name,
+    <p> Your Password will expire $messageDays<br>
+    To change your password on a PC press CTRL ALT Delete and choose Change Password <br>
+    <p> If you are using a MAC you can now change your password via Web Mail. <br>
+    Login to <a href=""https://mail.domain.com/owa"">Web Mail</a> click on Options, then Change Password.
+    <p> Don't forget to Update the password on your Mobile Devices as well!
+    <p>Thanks, <br> 
+    </P>
+    IT Support
+    <a href=""mailto:support@domain.com""?Subject=Password Expiry Assistance"">support@domain.com</a> | 0123 456 78910
     </font>"
     # If Testing Is Enabled - Email Administrator
     if($testing)
@@ -249,7 +265,7 @@ foreach ($user in $notifyUsers)
                     Write-Output "Sending Email : $samLabel : $emailAddress"
                 }
                 # Send message - if you need to use SMTP authentication watch this video https://youtu.be/_-JHzG_LNvw
-                Send-Mailmessage -smtpServer $smtpServer -from $from -to $emailaddress -subject $subject -body $body -bodyasHTML -priority High -Encoding $textEncoding -Credential $credential -ErrorAction Stop
+                Send-Mailmessage -smtpServer $smtpServer -from $from -to $emailaddress -subject $subject -body $body -bodyasHTML -priority High -Encoding $textEncoding -ErrorAction Stop
                 $user | Add-Member -MemberType NoteProperty -Name SendMail -Value "OK"
             }
             else
@@ -271,7 +287,7 @@ foreach ($user in $notifyUsers)
             {
                 Write-Output "Sending Email : $samLabel : $emailAddress"
             }
-            Send-Mailmessage -smtpServer $smtpServer -from $from -to $emailaddress -subject $subject -body $body -bodyasHTML -priority High -Encoding $textEncoding -Credential $credential -ErrorAction Stop
+            Send-Mailmessage -smtpServer $smtpServer -from $from -to $emailaddress -subject $subject -body $body -bodyasHTML -priority High -Encoding $textEncoding -ErrorAction Stop
             $user | Add-Member -MemberType NoteProperty -Name SendMail -Value "OK"
         }
     }
@@ -308,7 +324,7 @@ if($logging)
         $reportSubject = "Password Expiry Report"
         $reportBody = "Password Expiry Report Attached"
         try{
-            Send-Mailmessage -smtpServer $smtpServer -from $from -to $reportTo -subject $reportSubject -body $reportbody -bodyasHTML -priority High -Encoding $textEncoding -Credential $credential -Attachments $logFile -ErrorAction Stop 
+            Send-Mailmessage -smtpServer $smtpServer -from $from -to $reportTo -subject $reportSubject -body $reportbody -bodyasHTML -priority High -Encoding $textEncoding -Attachments $logFile -ErrorAction Stop 
         }
         catch{
             $errorMessage = $_.Exception.Message
