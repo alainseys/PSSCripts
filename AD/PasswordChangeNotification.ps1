@@ -137,7 +137,7 @@ $users = @()
 #create array to store groups
 $groups = @(
    "ALAIN-TEST",
-   "cc.vmt.11" 
+   "ALAIN-TEST2" 
 )
 
 foreach($group in $groups){
@@ -201,6 +201,11 @@ foreach ($user in $users)
     $userObj | Add-Member -Type NoteProperty -Name Name -Value $Name
     $userObj | Add-Member -Type NoteProperty -Name EmailAddress -Value $emailAddress
     $userObj | Add-Member -Type NoteProperty -Name PasswordSet -Value $pwdLastSet
+    #$userObj | Add-Member -Type NoteProperty -Name DaysToExpire -Value $daysToExpire
+    #Check if DaysToExpire is negative if so set it to 0 
+    if($daysToExpire -lt 0 ){
+        $daysToExpire = 0
+    }
     $userObj | Add-Member -Type NoteProperty -Name DaysToExpire -Value $daysToExpire
     $userObj | Add-Member -Type NoteProperty -Name ExpiresOn -Value $expiresOn
     # Add userObj to colusers array
@@ -208,12 +213,12 @@ foreach ($user in $users)
 }
 # Count Users
 $colUsersCount = ($colUsers | Measure-Object).Count
-Write-Output "$colusersCount Users processed"
+Write-Output "$colusersCount Gebruikers Verwerkt"
 # Select Users to Notify
 $notifyUsers = $colUsers | where { $_.DaysToExpire -le $expireInDays}
 $notifiedUsers = @()
 $notifyCount = ($notifyUsers | Measure-Object).Count
-Write-Output "$notifyCount Users with expiring passwords within $expireInDays Days"
+Write-Output "$notifyCount Gebruiker met verlopen wachtwoorden binnen $expireInDays dagen"
 # Process notifyusers
 foreach ($user in $notifyUsers)
 {
@@ -224,21 +229,29 @@ foreach ($user in $notifyUsers)
     $name = $user.Name
     $messageDays = $user.UserMessage
     # Subject Setting
-    $subject="Your password will expire $messageDays"
+    $subject="Uw wachtwoord zal verlopen binnen $messageDays dagen"
     # Email Body Set Here, Note You can use HTML, including Images.
     # examples here https://youtu.be/iwvQ5tPqgW0 
+    #OOF
+    ##    <b>Wachtwoord wijzigen buiten kantoor </b>
+    #<p>Ga naar portal.office.com 
+    #<p> If you are using a MAC you can now change your password via Web Mail. <br>
+    #Login to <a href=""https://mail.domain.com/owa"">Web Mail</a> click on Options, then Change Password.
+    #<p> Don't forget to Update the password on your Mobile Devices as well!
+
     $body ="
     <font face=""verdana"">
-    Dear $name,
-    <p> Your Password will expire $messageDays<br>
-    To change your password on a PC press CTRL ALT Delete and choose Change Password <br>
-    <p> If you are using a MAC you can now change your password via Web Mail. <br>
-    Login to <a href=""https://mail.domain.com/owa"">Web Mail</a> click on Options, then Change Password.
-    <p> Don't forget to Update the password on your Mobile Devices as well!
-    <p>Thanks, <br> 
+    Beste $name,
+    <p> Uw wachtwoord zal verlopen binnen $messageDays<br>
+    Wijzig uw wachtwoord door een van onderstaande instructies te volgen:<br>
+
+    <b>Wachtwoord wijzigen op kantoor </b>
+    Druk te toetsen CTRL + ALT + DEL kies de optie `Wachtwoord Wijzigen` volg de instructies op het scherm om het wachtwoord te wijzigen. <br>
+
+    <p>Bedankt <br> 
     </P>
-    IT Support
-    <a href=""mailto:support@domain.com""?Subject=Password Expiry Assistance"">support@domain.com</a> | 0123 456 78910
+    Van Marcke Helpdesk
+    <a href="mailto:helpdesk@vanmarcke.be"?Subject=Wachtwoord Verlopen | Problemen"">helpdesk@vanmarcke.be</a> | +32 562 377 66
     </font>"
     # If Testing Is Enabled - Email Administrator
     if($testing)
