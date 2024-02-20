@@ -1,7 +1,8 @@
 Connect-VIServer -Server "" -User "" -Password ""
 Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false
 
-$report = Get-View -ViewType VirtualMachine -Property Name,Guest |
+$report = Get-View -ViewType VirtualMachine -Property Name,Guest,Runtime |
+    Where-Object { $_.Runtime.PowerState -eq "poweredOn" } |
     Select-Object Name,
                   @{N='ToolsStatus';E={$_.Guest.ToolsStatus}},
                   @{N='ToolsType';E={$_.Guest.ToolsInstallType}},
@@ -12,6 +13,7 @@ $report = Get-View -ViewType VirtualMachine -Property Name,Guest |
     Sort-Object -Property Name
 
 $report | Select-Object Name | Export-Csv -Path "C:\temp\vm_list.csv" -NoTypeInformation
+
 
 $sMail = @{
     To = ""
