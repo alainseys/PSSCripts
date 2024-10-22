@@ -67,6 +67,7 @@ param(
 )
 ###################################################################################################################
 # Time / Date Info
+###################################################################################################################
 $start = [datetime]::Now
 $midnight = $start.Date.AddDays(1)
 $timeToMidnight = New-TimeSpan -Start $start -end $midnight.Date
@@ -76,15 +77,18 @@ $timeToMidnight2 = New-TimeSpan -Start $start -end $midnight2.Date
 $textEncoding = [System.Text.Encoding]::UTF8
 $today = $start
 # End System Settings
-
+###################################################################################################################
 # Load AD Module
+###################################################################################################################
 try{
     Import-Module ActiveDirectory -ErrorAction Stop
 }
 catch{
     Write-Warning "Unable to load Active Directory PowerShell Module"
 }
+###################################################################################################################
 # Set Output Formatting - Padding characters
+###################################################################################################################
 $padVal = "20"
 Write-Output "Script Loaded"
 Write-Output "*** Settings Summary ***"
@@ -114,7 +118,9 @@ if($logging)
         $logPath = $PSScriptRoot
     }
 }
+###################################################################################################################
 # Output Summary Information
+###################################################################################################################
 Write-Output "$smtpServerLabel : $smtpServer"
 Write-Output "$expireInDaysLabel : $expireInDays"
 Write-Output "$fromLabel : $from"
@@ -125,34 +131,30 @@ Write-Output "$testRecipientLabel : $testRecipient"
 Write-Output "$reportToLabel : $reportto"
 Write-Output "$interValLabel : $interval"
 Write-Output "*".PadRight(25,"*")
+###################################################################################################################
 # Get Users From AD who are Enabled, Passwords Expire and are Not Currently Expired
-# To target a specific OU - use the -searchBase Parameter -https://docs.microsoft.com/en-us/powershell/module/addsadministration/get-aduser
-# You can target specific group members using Get-AdGroupMember, explained here https://www.youtube.com/watch?v=4CX9qMcECVQ 
-# based on earlier version but method still works here.
-
-#Group Based targetting
-#Create arry to store User
+###################################################################################################################
+# Create arry to store User
 $users = @()
-
-#create array to store groups
+###################################################################################################################
+# Create array to store groups / Group based targetting
+###################################################################################################################
 $groups = @(
-   "ALAIN-TEST",
-   "ALAIN-TEST2" 
-)
+   "cc.vmt.11"
 
+)
 foreach($group in $groups){
     $members = Get-AdGroupMember $group
     #$members | Select SamAccountName
     #$members | Select Name
     foreach($member in $members){
-        $user = Get-ADUser $member -properties Name, PasswordNeverExpires, PasswordExpired, PasswordLastSet, EmailAddress
+        $user = Get-ADUser $member -properties Name, GivenName, SurName,PasswordNeverExpires, PasswordExpired, PasswordLastSet, EmailAddress, PreferredLanguage, Manager
         $users += $user
     }
 }
-#$users | Select Name
-
-#$users = get-aduser -filter {(Enabled -eq $true) -and (PasswordNeverExpires -eq $false)} -properties Name, PasswordNeverExpires, PasswordExpired, PasswordLastSet, EmailAddress | where { $_.passwordexpired -eq $false }
+###################################################################################################################
 # Count Users
+###################################################################################################################
 $usersCount = ($users | Measure-Object).Count
 Write-Output "Found $usersCount User Objects"
 # Collect Domain Password Policy Information
@@ -160,59 +162,90 @@ $defaultMaxPasswordAge = (Get-ADDefaultDomainPasswordPolicy -ErrorAction Stop).M
 Write-Output "Domain Default Password Age: $defaultMaxPasswordAge"
 # Collect Users
 $colUsers = @()
+
 # Process Each User for Password Expiry
 Write-Output "Process User Objects"
 foreach ($user in $users)
 {
+    # Get user info
+    $managerDN = $user.Manager
+    if($managerDN){
+        $mangerDetails = Get-AdUser -Identity $managerDN -Properties EmailAddress, GivenName, DisplayName, SurName
+        $managerFirstName = $mangerDetails.GivenName
+        $managerLastName = $managerDetails.LastName
+        $managerDisplayName = $mangerDetails.DisplayName
+        $managerEmail = $managerDetails.EmailAddress
+    }else{
+        $noinfo = "N/A"
+        $managerFirstName = $noinfo
+        $managerLastName = $noinfo
+        $managerDisplayName = $noinfo
+        $managerEmail = $noinfo
+    }
+    ###################################################################################################################
     # Store User information
+    ###################################################################################################################
     $Name = $user.Name
     $emailaddress = $user.emailaddress
     $passwordSetDate = $user.PasswordLastSet
     $samAccountName = $user.SamAccountName
     $pwdLastSet = $user.PasswordLastSet
+    $passwordNeverExpires  = $user.PasswordNeverExpires
+    $FirstName = $user.GivenName
+    $LastName = $user.Surname
+    ###################################################################################################################
     # Check for Fine Grained Password
+    ###################################################################################################################
     $maxPasswordAge = $defaultMaxPasswordAge
     $PasswordPol = (Get-AduserResultantPasswordPolicy $user) 
     if (($PasswordPol) -ne $null)
     {
         $maxPasswordAge = ($PasswordPol).MaxPasswordAge.Days
     }
+    ###################################################################################################################
     # Create User Object
+    ###################################################################################################################
     $userObj = New-Object System.Object
-    $expireson = $pwdLastSet.AddDays($maxPasswordAge)
-    $daysToExpire = New-TimeSpan -Start $today -End $Expireson
-    # Round Expiry Date Up or Down
-    if(($daysToExpire.Days -eq "0") -and ($daysToExpire.TotalHours -le $timeToMidnight.TotalHours))
-    {
-        $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value "today."
+    ###################################################################################################################
+    # Handeling password never expire
+    ###################################################################################################################
+    if($passwordNeverExpires -eq $true){
+        $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value 1 # Fix for PasswordNeverExpires
+        $userObj | Add-Member -Type NoteProperty -Name DaysToExpire -Value 1
+        $userObj | Add-Member -Type NoteProperty -Name ExpiresOn -Value $today
+    }else{
+        $expireson = $pwdLastSet.AddDays($maxPasswordAge)
+        $daysToExpire = New-TimeSpan -Start $today -End $expireson
+            # Round Expiry Date Up or Down
+        if(($daysToExpire.Days -eq "0") -and ($daysToExpire.TotalHours -le $timeToMidnight.TotalHours))
+        {
+            $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value "today."
+        }
+        if(($daysToExpire.Days -eq "0") -and ($daysToExpire.TotalHours -gt $timeToMidnight.TotalHours) -or ($daysToExpire.Days -eq "1") -and ($daysToExpire.TotalHours -le $timeToMidnight2.TotalHours))
+        {
+            $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value "tomorrow."
+        }
+        if(($daysToExpire.Days -ge "1") -and ($daysToExpire.TotalHours -gt $timeToMidnight2.TotalHours))
+        {
+            $days = $daysToExpire.TotalDays
+            $days = [math]::Round($days)
+            $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value "in $days days."
+        }
+        $daysToExpire = [math]::Round($daysToExpire.TotalDays)
+        $userObj | Add-Member -Type NoteProperty -Name DaysToExpire -Value $daysToExpire
+        $userObj | Add-Member -Type NoteProperty -Name ExpiresOn -Value $expiresOn
     }
-    if(($daysToExpire.Days -eq "0") -and ($daysToExpire.TotalHours -gt $timeToMidnight.TotalHours) -or ($daysToExpire.Days -eq "1") -and ($daysToExpire.TotalHours -le $timeToMidnight2.TotalHours))
-    {
-        $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value "tomorrow."
-    }
-    if(($daysToExpire.Days -ge "1") -and ($daysToExpire.TotalHours -gt $timeToMidnight2.TotalHours))
-    {
-        $days = $daysToExpire.TotalDays
-        $days = [math]::Round($days)
-        $userObj | Add-Member -Type NoteProperty -Name UserMessage -Value "in $days days."
-    }
-    $daysToExpire = [math]::Round($daysToExpire.TotalDays)
+    # Add remaining properteis to userObj
     $userObj | Add-Member -Type NoteProperty -Name UserName -Value $samAccountName
     $userObj | Add-Member -Type NoteProperty -Name Name -Value $Name
     $userObj | Add-Member -Type NoteProperty -Name EmailAddress -Value $emailAddress
     $userObj | Add-Member -Type NoteProperty -Name PasswordSet -Value $pwdLastSet
-    #$userObj | Add-Member -Type NoteProperty -Name DaysToExpire -Value $daysToExpire
-    #Check if DaysToExpire is negative if so set it to 0 
-    if($daysToExpire -lt 0 ){
-        $daysToExpire = 0
-    }
-    $userObj | Add-Member -Type NoteProperty -Name DaysToExpire -Value $daysToExpire
-    $userObj | Add-Member -Type NoteProperty -Name ExpiresOn -Value $expiresOn
-    # Add userObj to colusers array
+    $userObj | Add-Member -Type NoteProperty -Name PreferredLanguage -Value $user.PreferredLanguage  # New property for preferred language
     $colUsers += $userObj
 }
 # Count Users
 $colUsersCount = ($colUsers | Measure-Object).Count
+
 Write-Output "$colusersCount Gebruikers Verwerkt"
 # Select Users to Notify
 $notifyUsers = $colUsers | where { $_.DaysToExpire -le $expireInDays}
@@ -225,34 +258,53 @@ foreach ($user in $notifyUsers)
     # Email Address
     $samAccountName = $user.UserName
     $emailAddress = $user.EmailAddress
+    #Check if email address is null
+    if(-not $emailaddress){
+        Write-Output "Email address is null for user $($user.name)"
+    }
+
     # Set Greeting Message
     $name = $user.Name
     $messageDays = $user.UserMessage
     # Subject Setting
-    $subject="Uw wachtwoord zal verlopen binnen $messageDays dagen"
-    # Email Body Set Here, Note You can use HTML, including Images.
-    # examples here https://youtu.be/iwvQ5tPqgW0 
-    #OOF
-    ##    <b>Wachtwoord wijzigen buiten kantoor </b>
-    #<p>Ga naar portal.office.com 
-    #<p> If you are using a MAC you can now change your password via Web Mail. <br>
-    #Login to <a href=""https://mail.domain.com/owa"">Web Mail</a> click on Options, then Change Password.
-    #<p> Don't forget to Update the password on your Mobile Devices as well!
+    $subject="Uw wachtwoord zal verlopen binnen $messageDays dagen - Vortre mot de pas expira dans $messageDays jours " 
+       
+}
+    $templateDirectory = "html"
 
-    $body ="
-    <font face=""verdana"">
-    Beste $name,
-    <p> Uw wachtwoord zal verlopen binnen $messageDays<br>
-    Wijzig uw wachtwoord door een van onderstaande instructies te volgen:<br>
+    foreach($user in $notifyUsers){
+        $preferredLanguage = $user.PreferredLanguage
 
-    <b>Wachtwoord wijzigen op kantoor </b>
-    Druk te toetsen CTRL + ALT + DEL kies de optie `Wachtwoord Wijzigen` volg de instructies op het scherm om het wachtwoord te wijzigen. <br>
+        #Set Default language
+        if([string]::IsNullOrEmpty($preferredLanguage)){
+            $preferredLanguage = "en-US"
+        }
+        # Consturct the template
+        $templatePath = Join-Path $templateDirectory "$preferredLanguage.html"
 
-    <p>Bedankt <br> 
-    </P>
-    Van Marcke Helpdesk
-    <a href=""mailto:helpdesk@vanmarcke.be""?Subject=Wachtwoord Verlopen | Problemen"">helpdesk@vanmarcke.be</a> | +32 562 377 66
-    </font>"
+        # Check if the file exists
+        if(-not (Test-Path $templatePath)){
+            Write-Output "Template for $preferredLanguage was not found"
+            $templatePath = Join-Path $templateDirectory "en-US.html"
+        }
+        # Load the template file content
+        $body = Get-Content -Path $templatePath -Raw
+
+        # Replace the placeholders in the template with the actual user data
+        $body = $body -replace "{{UserName}}", $user.Name
+        $body = $body -replace "{{DaysToExpire}}", $user.DaysToExpire
+        $body = $body -replace "{{ManagerEmail}}", $user.ManagerEmail
+        $body = $body -replace "{{PasswordLastSet}}", $passwordSetDate
+        $body = $body -replace "{{FirstName}}", $FirstName
+        $body = $body -replace "{{LastName}}", $LastName
+        # Add Manager Placeholders
+        $body = $body -replace "{{ManagerFirstName}}", $managerFirstName
+        $body = $body -replace "{{ManagerLastName}}", $managerLastName
+        $body = $body -replace "{{ManagerEmail}}", $managerEmail
+
+        # Log the used template
+        Write-Output "Using Template: $templatePath for $FirstName $LastName"
+
     # If Testing Is Enabled - Email Administrator
     if($testing)
     {
@@ -345,8 +397,8 @@ if($logging)
         }
     }
 }
-$notifiedUsers | select UserName,Name,EmailAddress,PasswordSet,DaysToExpire,ExpiresOn | sort DaystoExpire | FT -autoSize
-
+#$notifiedUsers | select UserName,Name,EmailAddress,PasswordSet,DaysToExpire,ExpiresOn | sort DaystoExpire | FT -autoSize
+$notifiedUsers | Select-Object UserName, Name, EmailAddress, PasswordSet, DaysToExpire, ExpiresOn, PreferredLanguage | Sort-Object DaysToExpire | Format-Table -autoSize
 $stop = [datetime]::Now
 $runTime = New-TimeSpan $start $stop
 Write-Output "Script Runtime: $runtime"
